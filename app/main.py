@@ -9,9 +9,9 @@ import threading
 from threading import Thread
 import sys
 
-async def main():
+# def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
+    # print("Logs from your program will appear here!")
 
     # First & Second stage :-
     
@@ -236,16 +236,9 @@ async def main():
     #     client, addr = server_socket.accept()
     #     threading.Thread(target=handle_req, args=(client, addr)).start()
 
-    # Eighth stage :-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--directory", default=".")
-    args = parser.parse_args()
-    GLOBALS["DIR"] = args.directory
-    server = await asyncio.start_server(handle_connection, "localhost", 4221)
-    async with server:
-        stderr("Starting server...")
-        stderr(f"--directory {GLOBALS['DIR']}")
-        await server.serve_forever()
+
+# Eighth stage :-
+    
 
 GLOBALS = {}
 def stderr(*args, **kwargs):
@@ -316,7 +309,16 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter) -> None:
         stderr(f"[OUT] 404")
     writer.close()
 
-
+async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--directory", default=".")
+    args = parser.parse_args()
+    GLOBALS["DIR"] = args.directory
+    server = await asyncio.start_server(handle_connection, "localhost", 4221)
+    async with server:
+        stderr("Starting server...")
+        stderr(f"--directory {GLOBALS['DIR']}")
+        await server.serve_forever()
 
 if __name__ == "__main__":
     asyncio.run(main())
