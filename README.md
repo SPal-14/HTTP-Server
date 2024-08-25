@@ -12,3 +12,4 @@ Along the way I've learn about TCP servers,
 
 The entry point for your HTTP server implementation is in `app/main.py`. Study and uncomment the relevant code as applicable.
 
+Special Thanks for @codecrafters [https://codecrafters.io] for enhancing this learning!
