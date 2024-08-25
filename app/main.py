@@ -13,7 +13,7 @@ def main():
     #server_socket.accept()[0].sendall(b"HTTP/1.1 200 OK\r\n\r\n")
     
     # Third stage :-
-    
+    #
     server_socket: socket.socket = socket.create_server(("localhost", 4221), reuse_port=True)
     client: socket.socket
     client, addr = server_socket.accept()
@@ -25,7 +25,7 @@ def main():
     client.send(response)
     client.close()
     server_socket.close()
-    
+
 
 
 if __name__ == "__main__":
