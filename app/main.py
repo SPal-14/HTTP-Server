@@ -1,5 +1,6 @@
 # Uncomment this to pass the first stage
 import socket
+import threading
 from threading import Thread
 
 def main():
@@ -49,79 +50,154 @@ def main():
 
     # Fifth stage :-
 
-    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    threads = []
-    while 1:
-        conn, addr = server_socket.accept()  # wait for client
-        t = Thread(target=handle_client, args=[conn])
-        threads.append(t)
-        t.run()
+#     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+#     threads = []
+#     while 1:
+#         conn, addr = server_socket.accept()  # wait for client
+#         t = Thread(target=handle_client, args=[conn])
+#         threads.append(t)
+#         t.run()
 
-def reply(req, code, body="", headers={}):
-    b_reply = b""
-    match code:
-        case 200:
-            b_reply += b"HTTP/1.1 200 OK\r\n"
-        case 404:
-            b_reply += b"HTTP/1.1 404 Not Found\r\n"
-        case 500:
-            b_reply += b"HTTP/1.1 500 No\r\n"
-    if not "Content-Type" in headers:
-        headers["Content-Type"] = "text/plain"
-    if body != "":
-        headers["Content-Length"] = str(len(body))
-    for key, val in headers.items():
-        b_reply += bytes(key, "utf-8") + b": " + bytes(val, "utf-8") + b"\r\n"
-    b_reply += b"\r\n" + bytes(body, "utf-8")
-    return b_reply
+# def reply(req, code, body="", headers={}):
+#     b_reply = b""
+#     match code:
+#         case 200:
+#             b_reply += b"HTTP/1.1 200 OK\r\n"
+#         case 404:
+#             b_reply += b"HTTP/1.1 404 Not Found\r\n"
+#         case 500:
+#             b_reply += b"HTTP/1.1 500 No\r\n"
+#     if not "Content-Type" in headers:
+#         headers["Content-Type"] = "text/plain"
+#     if body != "":
+#         headers["Content-Length"] = str(len(body))
+#     for key, val in headers.items():
+#         b_reply += bytes(key, "utf-8") + b": " + bytes(val, "utf-8") + b"\r\n"
+#     b_reply += b"\r\n" + bytes(body, "utf-8")
+#     return b_reply
 
-def handle_request(conn, req):
-    if req["path"] == "/":
-        return reply(req, 200)
-    if req["path"].startswith("/echo/"):
-        return reply(req, 200, req["path"][6:])
-    if req["path"] == "/user-agent":
-        ua = req["headers"]["User-Agent"]
-        return reply(req, 200, ua)
-    return reply(req, 404)
+# def handle_request(conn, req):
+#     if req["path"] == "/":
+#         return reply(req, 200)
+#     if req["path"].startswith("/echo/"):
+#         return reply(req, 200, req["path"][6:])
+#     if req["path"] == "/user-agent":
+#         ua = req["headers"]["User-Agent"]
+#         return reply(req, 200, ua)
+#     return reply(req, 404)
 
-def parse_request(bytes):
-    output = {"method": "", "path": "", "headers": {}, "body": ""}
-    lines = bytes.decode("utf-8").split("\r\n")
-    if len(lines) < 3:
-        return None
-    reqLine = lines[0].split(" ")
-    if (not reqLine[0]) or reqLine[0] not in ["GET", "POST", "PUT", "HEAD"]:
-        return None
-    if (not reqLine[1]) or reqLine[1][0] != "/":
-        return None
-    output["method"] = reqLine[0]
-    output["path"] = reqLine[1]
-    # Ignore HTTP version
-    lines = lines[1:]
-    c = 0
-    for l in lines:
-        if l == "":
-            break
-        headLine = l.split(":")
-        output["headers"][headLine[0]] = headLine[1].lstrip()
-        c += 1
-    output["body"] = lines[c + 1]
-    return output
+# def parse_request(bytes):
+#     output = {"method": "", "path": "", "headers": {}, "body": ""}
+#     lines = bytes.decode("utf-8").split("\r\n")
+#     if len(lines) < 3:
+#         return None
+#     reqLine = lines[0].split(" ")
+#     if (not reqLine[0]) or reqLine[0] not in ["GET", "POST", "PUT", "HEAD"]:
+#         return None
+#     if (not reqLine[1]) or reqLine[1][0] != "/":
+#         return None
+#     output["method"] = reqLine[0]
+#     output["path"] = reqLine[1]
+#     # Ignore HTTP version
+#     lines = lines[1:]
+#     c = 0
+#     for l in lines:
+#         if l == "":
+#             break
+#         headLine = l.split(":")
+#         output["headers"][headLine[0]] = headLine[1].lstrip()
+#         c += 1
+#     output["body"] = lines[c + 1]
+#     return output
 
-def handle_client(conn):
-    byte = []
+# def handle_client(conn):
+#     byte = []
+#     try:
+#         while (byte := conn.recv(1024)) != b"":
+#             parsed_req = parse_request(byte)
+#             if parsed_req == None:
+#                 conn.send(str.encode("HTTP/1.1 500 No\r\n\r\n"))
+#                 return conn.close()
+#             # Recv & parsed request
+#             conn.send(handle_request(conn, parsed_req))
+#             return conn.close()
+#     except Exception as e:
+#         print("handle_client err", e)
+#         conn.close()
+
+    # Sixth stage :-
+
+    s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    server_address = ("localhost", 4221)
+    s.bind(server_address)
+    s.listen()
+    while True:
+        conn, addr = s.accept()
+        #c_handler(conn, addr)
+        # c_handler(conn, addr)
+        threading.Thread(target=c_handler, args=(conn, addr)).start()
+
+def drecv(conn, buffersize):
+    data = conn.recv(buffersize)
     try:
-        while (byte := conn.recv(1024)) != b"":
-            parsed_req = parse_request(byte)
-            if parsed_req == None:
-                conn.send(str.encode("HTTP/1.1 500 No\r\n\r\n"))
-                return conn.close()
-            # Recv & parsed request
-            conn.send(handle_request(conn, parsed_req))
-            return conn.close()
-    except Exception as e:
-        print("handle_client err", e)
+        data = data.decode()
+    except:
+        return -1
+    finally:
+        return data
+def dsend(conn, data, buffersize=4096):
+    conn.send(data.encode())
+def status(index, raw=""):
+    ok = "HTTP/1.1 200 OK\r\n"
+    notok = "HTTP/1.1 404 Not Found\r\n\r\n"
+    context = "Content-Type: text/plain\r\nContent-Length: "
+    # context="HTTP/1.1 200 OK\r\n\r\nContent-Type: text/plain\r\nContent-Length: "
+    if index == "/":
+        content = "Default page"
+        mes = ok + context + str(len(content)) + "\r\n" * 2 + content + "\r\n" * 2
+    elif index == "/echo/abc/":
+        content = "abc"
+        mes = ok + context + str(len(content)) + "\r\n" * 2 + content + "\r\n" * 2
+        # return context+str(len("abc"))+"\r\n"*2+"abc"+"\r\n"*2
+    elif index[0:6] == "/echo/":
+        content = index[6:]
+        mes = ok + context + str(len(content)) + "\r\n" * 2 + content + "\r\n" * 2
+    elif index == "/user-agent":
+        content = raw.split("\r\n")[2].split(" ", 1)[1]
+        mes = ok + context + str(len(content)) + "\r\n" * 2 + content + "\r\n" * 2
+    else:
+        # return "HTTP/1.1 404 Not Found\r\n\r\n"
+        content = "Page was not found"
+        mes = notok + context + str(len(content)) + "\r\n" * 2 + content + "\r\n" * 2
+    return mes
+def c_handler(conn, addr, buffersize=4096):
+    def message(data):
+        print("sending message: " + str(data))
+        return dsend(conn, data)
+    data = drecv(conn, buffersize)
+    if data != 0 or data != -1:
+        print(data)
+        # dsend(conn, message)
+        print("data: \n")
+        print(data)
+        p1 = data.split("\r\n")[0].split()[1]
+        message(status(p1, data))
+        """
+        if p1 == "/":
+            message("HTTP/1.1 200 OK\r\n\r\n")
+        elif p1 == "/echo/abc":
+            #message("abc
+            mes="HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+            content="abc"
+            mes+=str(len(abc))+ "r\n"*2
+            mes+=content+"\r\n"*2
+            message(mes)
+        else:
+            message("HTTP/1.1 404 Not Found \r\n\r\n")
+        """
+    else:
+        message(status())
 
 if __name__ == "__main__":
     main()
