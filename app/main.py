@@ -275,7 +275,6 @@ def make_response(
         ),
     )
 async def handle_connection(reader: StreamReader, writer: StreamWriter) -> None:
- #   _, path, headers, _ = parse_request(await reader.read(2**16))
     method, path, headers, body = parse_request(await reader.read(2**16))
     if re.fullmatch(r"/", path):
         writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
@@ -308,7 +307,6 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter) -> None:
         writer.write(make_response(404, {}, ""))
         stderr(f"[OUT] 404")
     writer.close()
-
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--directory", default=".")
@@ -319,6 +317,5 @@ async def main():
         stderr("Starting server...")
         stderr(f"--directory {GLOBALS['DIR']}")
         await server.serve_forever()
-
 if __name__ == "__main__":
     asyncio.run(main())
